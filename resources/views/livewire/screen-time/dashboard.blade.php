@@ -410,27 +410,17 @@ new #[Layout('components.layouts.app')] class extends Component
                     <flux:badge size="sm" color="amber">Override</flux:badge>
                 @endif
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-baseline gap-2">
                 <div @class([
-                    'text-sm font-medium',
+                    'flex items-baseline gap-1.5',
                     'text-red-600 dark:text-red-400' => $this->today->isOverLimit(),
-                    'text-zinc-500 dark:text-zinc-400' => ! $this->today->isOverLimit(),
+                    'text-zinc-700 dark:text-zinc-200' => ! $this->today->isOverLimit(),
                 ])>
-                    {{ $this->formatMinutes($used) }} of {{ $this->formatMinutes($limit) }} used
-                    @if ($used > $limit)
-                        &middot; {{ $this->formatMinutes($used - $limit) }} over
-                    @else
-                        &middot; {{ $this->formatMinutes($this->today->remainingMinutes()) }} left
-                    @endif
+                    <span class="text-3xl font-bold tabular-nums">
+                        {{ $this->formatMinutes($used > $limit ? $used - $limit : $this->today->remainingMinutes()) }}
+                    </span>
+                    <span class="text-sm font-medium">{{ $used > $limit ? 'over' : 'left' }}</span>
                 </div>
-                @if ($canManage)
-                    <flux:button
-                        size="xs"
-                        variant="subtle"
-                        icon="pencil-square"
-                        wire:click="editLimit('{{ $this->today->day->toDateString() }}')"
-                    >Allowance</flux:button>
-                @endif
             </div>
         </div>
 
@@ -458,7 +448,22 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <flux:spacer />
 
-            <div class="text-sm text-zinc-400 dark:text-zinc-500">{{ $this->today->limitReason() }}</div>
+            {{-- The allowance caption doubles as the way in to editing it --}}
+            @if ($canManage)
+                <button
+                    type="button"
+                    data-allowance-edit
+                    wire:click="editLimit('{{ $this->today->day->toDateString() }}')"
+                    class="flex items-center gap-1 text-sm text-zinc-400 underline decoration-dotted underline-offset-4 transition hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                >
+                    {{ $this->today->limitReason() }} <span class="tabular-nums">({{ $this->formatMinutes($limit) }})</span>
+                    <flux:icon icon="pencil-square" variant="micro" />
+                </button>
+            @else
+                <div class="text-sm text-zinc-400 dark:text-zinc-500">
+                    {{ $this->today->limitReason() }} <span class="tabular-nums">({{ $this->formatMinutes($limit) }})</span>
+                </div>
+            @endif
         </div>
     </div>
 

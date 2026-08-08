@@ -51,7 +51,7 @@ class ScreenTimeRoleTest extends TestCase
 
         $response->assertDontSee('Add screen time');
         $response->assertDontSee('Extend by');
-        $response->assertDontSee('Allowance');
+        $response->assertDontSee('data-allowance-edit');
         // The read-only view still shows what's going on.
         $response->assertSee('in progress');
         $response->assertSee('Last 7 days');
@@ -67,7 +67,8 @@ class ScreenTimeRoleTest extends TestCase
             ->assertOk()
             ->assertSee('Add screen time')
             ->assertSee('Extend by')
-            ->assertSee('Allowance');
+            // The allowance caption is the way in to editing the limit.
+            ->assertSee('data-allowance-edit');
     }
 
     public function test_the_child_cannot_log_screen_time(): void
