@@ -158,7 +158,7 @@ class SessionEndedNotificationTest extends TestCase
         Queue::fake();
 
         Volt::actingAs(User::factory()->create())
-            ->test('screen-time.dashboard')
+            ->test('settings.notifications')
             ->call('sendTestPush');
 
         Queue::assertPushed(
