@@ -601,7 +601,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <span class="size-3 shrink-0 rounded-full" style="background-color: {{ $entry->type->color() }}"></span>
                             <span class="font-medium">{{ $entry->type->label() }}</span>
                             <span class="text-sm text-zinc-500 tabular-nums dark:text-zinc-400">
-                                {{ $entry->started_at->format('H:i') }}–{{ $entry->endedAt()->format('H:i') }}
+                                {{ $entry->started_at->format('H:i') }}
                             </span>
                             <flux:spacer />
                             <span class="text-sm tabular-nums">{{ $this->formatMinutes($entry->minutes) }}</span>
