@@ -371,11 +371,15 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="mt-4 flex flex-wrap items-center gap-2">
                 <span class="text-sm font-medium opacity-90">Extend by</span>
                 @foreach ($extensions as $extension)
+                    {{-- Only the shortest extension fits on a phone held upright. --}}
                     <button
                         type="button"
                         wire:click="extend({{ $extension }})"
                         wire:loading.attr="disabled"
-                        class="rounded-lg border border-white/40 bg-white/15 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/25 disabled:opacity-50"
+                        @class([
+                            'rounded-lg border border-white/40 bg-white/15 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/25 disabled:opacity-50',
+                            'hidden sm:block landscape:block' => ! $loop->first,
+                        ])
                     >
                         +{{ $extension }} min
                     </button>
@@ -505,8 +509,8 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
     @endif
 
-    {{-- Day timelines --}}
-    <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+    {{-- Day timelines: too cramped on a phone held upright, so portrait phones skip them. --}}
+    <div class="hidden rounded-xl border border-zinc-200 p-5 sm:block landscape:block dark:border-zinc-700">
         <flux:heading size="lg">Last {{ count($this->timelines) }} days</flux:heading>
         <flux:subheading>{{ sprintf('%02d:00', $startHour) }} to {{ sprintf('%02d:00', $endHour) }}</flux:subheading>
 
