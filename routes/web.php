@@ -7,9 +7,13 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::view('dashboard', 'dashboard')
+Volt::route('dashboard', 'screen-time.dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+Volt::route('screen-time', 'screen-time.entries')
+    ->middleware(['auth', 'verified'])
+    ->name('screen-time');
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');

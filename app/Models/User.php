@@ -3,14 +3,17 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable // implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -22,6 +25,7 @@ class User extends Authenticatable // implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -44,7 +48,27 @@ class User extends Authenticatable // implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
         ];
+    }
+
+    /**
+     * Entries this user logged. Screen time is shared by everyone who logs in,
+     * so this is a record of who added what — never a filter for reading it.
+     *
+     * @return HasMany<ScreenTimeEntry, $this>
+     */
+    public function recordedScreenTimeEntries(): HasMany
+    {
+        return $this->hasMany(ScreenTimeEntry::class);
+    }
+
+    /**
+     * Whether this user may change screen time, rather than just look at it.
+     */
+    public function canManageScreenTime(): bool
+    {
+        return $this->role->canManage();
     }
 
     /**
