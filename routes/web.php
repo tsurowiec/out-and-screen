@@ -4,7 +4,10 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 Route::get('/', function () {
-    return view('welcome');
+    // The splash screen is only for guests; signed-in users go straight to work.
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : view('welcome');
 })->name('home');
 
 Volt::route('dashboard', 'screen-time.dashboard')
