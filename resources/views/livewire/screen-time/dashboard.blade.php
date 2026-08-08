@@ -419,7 +419,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <span class="text-3xl font-bold tabular-nums">
                         {{ $this->formatMinutes($used > $limit ? $used - $limit : $this->today->remainingMinutes()) }}
                     </span>
-                    <span class="text-sm font-medium">{{ $used > $limit ? 'over' : 'left' }}</span>
+                    <span class="text-sm font-medium">{{ $used > $limit ? ' over' : ' left' }}</span>
                 </div>
             </div>
         </div>
