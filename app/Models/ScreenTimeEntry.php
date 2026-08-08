@@ -28,6 +28,7 @@ class ScreenTimeEntry extends Model
             'type' => ScreenType::class,
             'minutes' => 'integer',
             'started_at' => 'datetime',
+            'notified_at' => 'datetime',
         ];
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PushSubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -23,6 +24,10 @@ Volt::route('trips', 'trips.index')
     ->name('trips');
 
 Route::middleware(['auth'])->group(function () {
+    // Device enrolment for "your session has ended" push notifications.
+    Route::post('push/subscribe', [PushSubscriptionController::class, 'store']);
+    Route::delete('push/subscribe', [PushSubscriptionController::class, 'destroy']);
+
     Route::redirect('settings', 'settings/profile');
 
     Volt::route('settings/profile', 'settings.profile')->name('settings.profile');

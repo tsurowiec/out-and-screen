@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ScreenType;
+use App\Jobs\NotifySessionEnded;
 use App\Models\ScreenTimeEntry;
 use App\Models\ScreenTimeLimitOverride;
 use App\Models\TripEntry;
@@ -43,12 +44,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
         abort_unless(in_array($minutes, config('screen-time.quick_durations'), true), 422);
 
-        ScreenTimeEntry::query()->create([
+        $entry = ScreenTimeEntry::query()->create([
             'type' => $type,
             'minutes' => $minutes,
             'started_at' => now(),
             'user_id' => auth()->id(),
         ]);
+
+        NotifySessionEnded::scheduleFor($entry);
 
         $this->refreshData();
     }
@@ -67,6 +70,8 @@ new #[Layout('components.layouts.app')] class extends Component
         abort_if($active === null, 404);
 
         $active->update(['minutes' => $active->minutes + $minutes]);
+
+        NotifySessionEnded::scheduleFor($active);
 
         $this->refreshData();
     }
@@ -314,6 +319,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'hourTicks' => DayTimeline::hourTicks(),
             'startHour' => config('screen-time.day_start_hour'),
             'endHour' => config('screen-time.day_end_hour'),
+            'pushConfigured' => filled(config('webpush.vapid.public_key')),
         ];
     }
 }; ?>
@@ -526,6 +532,93 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
             @endforeach
         </div>
+    </div>
+    @endif
+
+    {{-- Push notifications for this device --}}
+    @if ($pushConfigured)
+    <div
+        class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700"
+        x-data="{
+            state: 'checking',
+            error: null,
+            busy: false,
+            async init() {
+                if (! window.push?.supported()) {
+                    this.state = 'unsupported'
+                    return
+                }
+
+                // iOS exposes the push APIs in Safari but refuses to subscribe
+                // there — only the home-screen app can.
+                if (window.push.isIos() && ! window.push.standalone()) {
+                    this.state = 'needs-install'
+                    return
+                }
+
+                if (window.push.permission() === 'denied') {
+                    this.state = 'denied'
+                    return
+                }
+
+                this.state = (await window.push.subscribed()) ? 'on' : 'off'
+            },
+            async enable() {
+                this.busy = true
+                this.error = null
+
+                try {
+                    await window.push.subscribe()
+                    this.state = 'on'
+                } catch (e) {
+                    this.error = e.message
+                    if (window.push.permission() === 'denied') this.state = 'denied'
+                } finally {
+                    this.busy = false
+                }
+            },
+            async disable() {
+                this.busy = true
+
+                try {
+                    await window.push.unsubscribe()
+                    this.state = 'off'
+                } catch (e) {
+                    this.error = e.message
+                } finally {
+                    this.busy = false
+                }
+            },
+        }"
+    >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <flux:heading size="lg">Notifications</flux:heading>
+                <flux:subheading>
+                    <span x-show="state === 'on'">This device will buzz when a session runs out.</span>
+                    <span x-show="state === 'off'">Get a buzz on this device when a session runs out.</span>
+                    <span x-show="state === 'needs-install'">Add Out&amp;Screen to your Home Screen, then open it from there.</span>
+                    <span x-show="state === 'denied'">Turn them on in Settings › Notifications › Out&amp;Screen.</span>
+                    <span x-show="state === 'unsupported'">This browser can't show notifications.</span>
+                    <span x-show="state === 'checking'">Checking…</span>
+                </flux:subheading>
+            </div>
+
+            <div x-show="state === 'off'">
+                <flux:button variant="primary" x-on:click="enable()" ::disabled="busy">
+                    Enable
+                </flux:button>
+            </div>
+
+            <div class="flex items-center gap-3" x-show="state === 'on'">
+                <flux:badge size="sm" color="green">On</flux:badge>
+                <flux:button size="sm" variant="subtle" x-on:click="disable()" ::disabled="busy">
+                    Turn off
+                </flux:button>
+            </div>
+        </div>
+
+        <p class="mt-3 text-sm text-red-600 dark:text-red-400" x-show="error" x-text="error"></p>
     </div>
     @endif
 

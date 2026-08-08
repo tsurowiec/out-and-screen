@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ScreenType;
+use App\Jobs\NotifySessionEnded;
 use App\Models\ScreenTimeEntry;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
@@ -67,6 +68,10 @@ new class extends Component
             'started_at' => $entry->started_at->copy()->setTime((int) $hour, (int) $minute),
             'minutes' => $this->entryMinutes,
         ]);
+
+        // Editing can push a session's end back into the future, which makes it
+        // a running session again.
+        NotifySessionEnded::scheduleFor($entry);
 
         $this->close();
 
