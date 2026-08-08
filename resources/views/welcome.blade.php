@@ -6,7 +6,9 @@
     <body class="min-h-svh bg-white antialiased dark:bg-neutral-950">
         <main class="flex min-h-svh flex-col items-center justify-center gap-10 p-6">
             <div class="flex flex-col items-center gap-6 transition-all duration-700 translate-y-0 opacity-100 starting:translate-y-3 starting:opacity-0">
-                <x-app-logo-icon class="size-16 text-neutral-900 dark:text-white" />
+                <span class="flex size-20 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-500/15">
+                    <x-app-logo-icon class="size-14 text-red-500 dark:text-red-400" />
+                </span>
 
                 <h1 class="text-3xl font-medium tracking-tight text-neutral-900 dark:text-white">
                     Out<span class="text-neutral-400 dark:text-neutral-500">&amp;</span>Screen
