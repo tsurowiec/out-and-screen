@@ -65,7 +65,13 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    /*
+     * The household's timezone. Screen time is inherently local — "today", the
+     * 6am–10pm chart window and the weekday/weekend allowance rules all mean
+     * local time — so the app works in it end to end, even though the server
+     * clock is UTC.
+     */
+    'timezone' => env('APP_TIMEZONE', 'Europe/Warsaw'),
 
     /*
     |--------------------------------------------------------------------------
