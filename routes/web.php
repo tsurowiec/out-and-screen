@@ -18,6 +18,10 @@ Volt::route('screen-time', 'screen-time.entries')
     ->middleware(['auth', 'verified'])
     ->name('screen-time');
 
+Volt::route('trips', 'trips.index')
+    ->middleware(['auth', 'verified'])
+    ->name('trips');
+
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 

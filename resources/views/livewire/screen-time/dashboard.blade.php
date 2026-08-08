@@ -3,8 +3,10 @@
 use App\Enums\ScreenType;
 use App\Models\ScreenTimeEntry;
 use App\Models\ScreenTimeLimitOverride;
+use App\Models\TripEntry;
 use App\Support\DayTimeline;
 use App\Support\ScreenTimeLimit;
+use App\Support\TripWeek;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -266,6 +268,18 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Hours out on trips so far this week, where the week runs Saturday to
+     * Friday. Trips are logged on their own page; this is a read-only glance.
+     */
+    #[Computed]
+    public function tripMinutesThisWeek(): int
+    {
+        return (int) TripEntry::query()
+            ->betweenDays(TripWeek::startFor(today()), TripWeek::endFor(today()))
+            ->sum('minutes');
+    }
+
+    /**
      * @return \Illuminate\Support\Collection<int, ScreenTimeEntry>
      */
     #[Computed]
@@ -296,6 +310,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'durations' => config('screen-time.quick_durations'),
             'extensions' => config('screen-time.extend_durations'),
             'canManage' => auth()->user()->canManageScreenTime(),
+            'tripWeekLabel' => TripWeek::label(TripWeek::startFor(today())),
             'hourTicks' => DayTimeline::hourTicks(),
             'startHour' => config('screen-time.day_start_hour'),
             'endHour' => config('screen-time.day_end_hour'),
@@ -513,6 +528,26 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
     @endif
+
+    {{-- Trips, at a glance: the week's total, with the page itself a tap away --}}
+    <a
+        href="{{ route('trips') }}"
+        wire:navigate
+        class="block rounded-xl border border-zinc-200 p-5 transition hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
+    >
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <flux:heading size="lg">Trips this week</flux:heading>
+
+            <div class="flex items-baseline gap-1.5 text-zinc-700 dark:text-zinc-200">
+                <span class="text-3xl font-bold tabular-nums">
+                    {{ $this->formatMinutes($this->tripMinutesThisWeek) }}
+                </span>
+                <span class="text-sm font-medium">out</span>
+            </div>
+        </div>
+
+        <div class="mt-1 text-sm text-zinc-400 dark:text-zinc-500">{{ $tripWeekLabel }}</div>
+    </a>
 
     {{-- Day timelines: too cramped on a phone held upright, so portrait phones skip them. --}}
     <div class="hidden rounded-xl border border-zinc-200 p-5 sm:block landscape:block dark:border-zinc-700">

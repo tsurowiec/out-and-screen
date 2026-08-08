@@ -72,6 +72,25 @@ class User extends Authenticatable // implements MustVerifyEmail
     }
 
     /**
+     * Whether this user may log and change trips.
+     */
+    public function canManageTrips(): bool
+    {
+        return $this->role->canManage();
+    }
+
+    /**
+     * Trips this user logged. Like screen time, trips are shared by everyone
+     * who logs in, so this records who added what and never filters reads.
+     *
+     * @return HasMany<TripEntry, $this>
+     */
+    public function recordedTripEntries(): HasMany
+    {
+        return $this->hasMany(TripEntry::class);
+    }
+
+    /**
      * Get the user's initials
      */
     public function initials(): string

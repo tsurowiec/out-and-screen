@@ -23,5 +23,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // Everyone sees the same screen time; only parents may change it.
         Gate::define('manage-screen-time', fn (User $user) => $user->canManageScreenTime());
+
+        // Trips are shared the same way, and follow the same rule.
+        Gate::define('manage-trips', fn (User $user) => $user->canManageTrips());
     }
 }
