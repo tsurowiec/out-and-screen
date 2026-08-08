@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ScreenType;
 use App\Jobs\NotifySessionEnded;
+use App\Jobs\SendTestPush;
 use App\Models\PushSubscription;
 use App\Models\ScreenTimeEntry;
 use App\Models\User;
@@ -151,6 +152,39 @@ class SessionEndedNotificationTest extends TestCase
         $this->assertDatabaseCount('push_subscriptions', 0);
     }
 
+    public function test_the_test_button_queues_a_push_for_two_minutes_time(): void
+    {
+        Carbon::setTestNow(today()->setTime(15, 0));
+        Queue::fake();
+
+        Volt::actingAs(User::factory()->create())
+            ->test('screen-time.dashboard')
+            ->call('sendTestPush');
+
+        Queue::assertPushed(
+            SendTestPush::class,
+            fn (SendTestPush $job) => $job->delay->equalTo(now()->addMinutes(2)),
+        );
+    }
+
+    public function test_a_test_push_only_reaches_the_device_that_asked_for_it(): void
+    {
+        $mine = PushSubscription::query()->create($this->subscriptionAttributes());
+        PushSubscription::query()->create([
+            ...$this->subscriptionAttributes(),
+            'endpoint' => $other = 'https://web.push.apple.com/someone-else',
+            'endpoint_hash' => PushSubscription::hashFor($other),
+        ]);
+
+        $sender = $this->spyingSender();
+
+        (new SendTestPush($mine->user_id))->handle($sender);
+
+        $this->assertCount(1, $sender->sent);
+        $this->assertSame('Test notification', $sender->sent[0]['title']);
+        $this->assertSame([$mine->endpoint], $sender->endpoints);
+    }
+
     public function test_subscribing_requires_signing_in(): void
     {
         $this->postJson('/push/subscribe', [
@@ -195,9 +229,13 @@ class SessionEndedNotificationTest extends TestCase
             /** @var array<int, array<string, mixed>> */
             public array $sent = [];
 
+            /** @var array<int, string> */
+            public array $endpoints = [];
+
             public function send(Collection $subscriptions, array $payload): int
             {
                 $this->sent[] = $payload;
+                $this->endpoints = $subscriptions->pluck('endpoint')->all();
 
                 return $subscriptions->count();
             }

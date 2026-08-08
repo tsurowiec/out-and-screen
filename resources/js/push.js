@@ -74,7 +74,14 @@ export const push = {
         const permission = await Notification.requestPermission()
 
         if (permission !== 'granted') {
-            throw new Error('Notifications are blocked. Turn them on in iOS Settings › Notifications › Out&Screen.')
+            // iOS never offers a second chance at the prompt, and won't list the
+            // app under Settings › Notifications until it has been allowed once,
+            // so the only way back is a reinstall.
+            throw new Error(
+                this.isIos()
+                    ? 'Notifications were turned down. Remove Out&Screen from your Home Screen, add it again from Safari, and tap Enable.'
+                    : 'Notifications are blocked. Allow them for this site in your browser settings.',
+            )
         }
 
         const registration = await this.registration()

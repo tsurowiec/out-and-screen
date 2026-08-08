@@ -2,6 +2,7 @@
 
 use App\Enums\ScreenType;
 use App\Jobs\NotifySessionEnded;
+use App\Jobs\SendTestPush;
 use App\Models\ScreenTimeEntry;
 use App\Models\ScreenTimeLimitOverride;
 use App\Models\TripEntry;
@@ -9,6 +10,7 @@ use App\Support\DayTimeline;
 use App\Support\ScreenTimeLimit;
 use App\Support\TripWeek;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -32,7 +34,6 @@ new #[Layout('components.layouts.app')] class extends Component
     /** The allowance being typed into the modal, in minutes. */
     public ?int $limitMinutes = null;
 
-
     /**
      * Log a session of the selected type that starts now.
      */
@@ -54,6 +55,17 @@ new #[Layout('components.layouts.app')] class extends Component
         NotifySessionEnded::scheduleFor($entry);
 
         $this->refreshData();
+    }
+
+    /**
+     * Queue a test notification for two minutes' time — long enough to lock
+     * the phone and close the app before it arrives.
+     */
+    public function sendTestPush(): void
+    {
+        SendTestPush::dispatch(auth()->id())->delay(now()->addMinutes(2));
+
+        $this->dispatch('test-push-queued');
     }
 
     /**
@@ -285,7 +297,7 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, ScreenTimeEntry>
+     * @return Collection<int, ScreenTimeEntry>
      */
     #[Computed]
     public function todayEntries()
@@ -543,7 +555,25 @@ new #[Layout('components.layouts.app')] class extends Component
             state: 'checking',
             error: null,
             busy: false,
+            queued: false,
+            ios: false,
+            diagnostics: null,
+            /**
+             * The handful of values that decide whether a prompt can appear at
+             * all. Shown on the panel because none of it is visible from the
+             * phone otherwise — there are no dev tools on a Home Screen app.
+             */
+            describe(step) {
+                this.diagnostics = [
+                    step,
+                    'permission: ' + (window.push?.permission() ?? 'no script'),
+                    'installed: ' + (window.push?.standalone() ? 'yes' : 'no'),
+                    'worker: ' + ('serviceWorker' in navigator ? 'yes' : 'no'),
+                ].join(' · ')
+            },
             async init() {
+                this.ios = Boolean(window.push?.isIos())
+
                 if (! window.push?.supported()) {
                     this.state = 'unsupported'
                     return
@@ -566,12 +596,15 @@ new #[Layout('components.layouts.app')] class extends Component
             async enable() {
                 this.busy = true
                 this.error = null
+                this.describe('before')
 
                 try {
                     await window.push.subscribe()
                     this.state = 'on'
+                    this.describe('subscribed')
                 } catch (e) {
                     this.error = e.message
+                    this.describe('failed')
                     if (window.push.permission() === 'denied') this.state = 'denied'
                 } finally {
                     this.busy = false
@@ -590,6 +623,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 }
             },
         }"
+        x-on:test-push-queued.window="queued = true"
     >
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -598,7 +632,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     <span x-show="state === 'on'">This device will buzz when a session runs out.</span>
                     <span x-show="state === 'off'">Get a buzz on this device when a session runs out.</span>
                     <span x-show="state === 'needs-install'">Add Out&amp;Screen to your Home Screen, then open it from there.</span>
-                    <span x-show="state === 'denied'">Turn them on in Settings › Notifications › Out&amp;Screen.</span>
+                    {{--
+                        A refused prompt sticks for the life of the installed
+                        app, and iOS only lists a web app under Settings ›
+                        Notifications once it has been allowed — so there is no
+                        switch to send anyone to. Reinstalling is the only reset.
+                    --}}
+                    <span x-show="state === 'denied' && ios">Notifications were turned down. Remove Out&amp;Screen from your Home Screen, add it again from Safari, and tap Enable.</span>
+                    <span x-show="state === 'denied' && ! ios">Notifications are blocked. Allow them for this site in your browser's settings.</span>
                     <span x-show="state === 'unsupported'">This browser can't show notifications.</span>
                     <span x-show="state === 'checking'">Checking…</span>
                 </flux:subheading>
@@ -612,13 +653,27 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="flex items-center gap-3" x-show="state === 'on'">
                 <flux:badge size="sm" color="green">On</flux:badge>
+                <flux:button
+                    size="sm"
+                    variant="subtle"
+                    wire:click="sendTestPush"
+                    wire:loading.attr="disabled"
+                >
+                    Test in 2 min
+                </flux:button>
                 <flux:button size="sm" variant="subtle" x-on:click="disable()" ::disabled="busy">
                     Turn off
                 </flux:button>
             </div>
         </div>
 
+        <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400" x-show="queued">
+            Test notification queued — it should arrive in about two minutes. Close the app to see it land.
+        </p>
+
         <p class="mt-3 text-sm text-red-600 dark:text-red-400" x-show="error" x-text="error"></p>
+
+        <p class="mt-2 font-mono text-xs text-zinc-400 dark:text-zinc-500" x-show="diagnostics" x-text="diagnostics"></p>
     </div>
     @endif
 
