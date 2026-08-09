@@ -134,6 +134,17 @@ new #[Layout('components.layouts.app')] #[Title('Screen time')] class extends Co
                                     </button>
 
                                     @if ($canManage)
+                                        {{-- Splitting moves in five-minute steps, so short entries can't be cut. --}}
+                                        @if ($entry->minutes >= 10)
+                                            <flux:button
+                                                size="xs"
+                                                variant="subtle"
+                                                icon="scissors"
+                                                title="Split this entry"
+                                                wire:click="$dispatch('split-entry', { id: {{ $entry->id }} })"
+                                            />
+                                        @endif
+
                                         <flux:button
                                             size="xs"
                                             variant="subtle"
@@ -157,4 +168,7 @@ new #[Layout('components.layouts.app')] #[Title('Screen time')] class extends Co
 
     {{-- Shared entry editor, opened via the edit-entry event --}}
     <livewire:screen-time.entry-editor />
+
+    {{-- Shared entry splitter, opened via the split-entry event --}}
+    <livewire:screen-time.entry-splitter />
 </div>

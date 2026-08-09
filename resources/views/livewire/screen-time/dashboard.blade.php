@@ -571,16 +571,13 @@ new #[Layout('components.layouts.app')] class extends Component
                         >{{ $hour }}</span>
                     @endforeach
                 </div>
-                <div class="w-24 shrink-0"></div>
+                <div class="w-28 shrink-0 sm:w-32"></div>
             </div>
 
             @foreach ($this->timelines as $timeline)
                 <div class="flex items-center gap-3" wire:key="day-{{ $timeline->day->toDateString() }}">
-                    <div class="flex w-16 shrink-0 items-center gap-1 text-sm text-zinc-600 sm:w-24 dark:text-zinc-400">
-                        <span>{{ $timeline->day->isToday() ? 'Today' : $timeline->day->format('D j M') }}</span>
-                        @if ($timeline->limitIsOverridden)
-                            <span class="size-1.5 rounded-full bg-amber-500" title="Manual override"></span>
-                        @endif
+                    <div class="w-16 shrink-0 text-sm text-zinc-600 sm:w-24 dark:text-zinc-400">
+                        {{ $timeline->day->isToday() ? 'Today' : $timeline->day->format('D j M') }}
                     </div>
 
                     <div class="relative h-7 flex-1 overflow-hidden rounded-lg bg-zinc-200 dark:bg-zinc-700">
@@ -609,7 +606,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @disabled(! $canManage)
                         title="{{ $timeline->limitReason() }} allowance: {{ $this->formatMinutes($timeline->limitMinutes) }}"
                         @class([
-                            'w-24 shrink-0 rounded text-right text-sm tabular-nums',
+                            'w-28 shrink-0 rounded text-right text-sm whitespace-nowrap tabular-nums sm:w-32',
                             'hover:underline' => $canManage,
                             'font-semibold text-red-600 dark:text-red-400' => $timeline->isOverLimit(),
                             'text-zinc-500 dark:text-zinc-400' => ! $timeline->isOverLimit(),
@@ -656,6 +653,17 @@ new #[Layout('components.layouts.app')] class extends Component
                         </button>
 
                         @if ($canManage)
+                            {{-- Splitting moves in five-minute steps, so short entries can't be cut. --}}
+                            @if ($entry->minutes >= 10)
+                                <flux:button
+                                    size="xs"
+                                    variant="subtle"
+                                    icon="scissors"
+                                    title="Split this entry"
+                                    wire:click="$dispatch('split-entry', { id: {{ $entry->id }} })"
+                                />
+                            @endif
+
                             <flux:button
                                 size="xs"
                                 variant="subtle"
@@ -672,6 +680,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     {{-- Shared entry editor, opened via the edit-entry event --}}
     <livewire:screen-time.entry-editor />
+
+    {{-- Shared entry splitter, opened via the split-entry event --}}
+    <livewire:screen-time.entry-splitter />
 
     {{-- Allowance override --}}
     <flux:modal wire:model.self="editingLimit" class="md:w-96">
