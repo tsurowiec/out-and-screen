@@ -323,7 +323,10 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div class="flex w-full flex-col gap-6">
+{{-- A session started on another device should show up here without a tap.
+     Livewire stops polling while the tab is in the background, where the
+     foreground-return reload in freshness.js takes over instead. --}}
+<div wire:poll.30s class="flex w-full flex-col gap-6">
     @php
         $used = $this->today->totalMinutes;
         $limit = $this->today->limitMinutes;
