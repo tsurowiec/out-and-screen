@@ -4,16 +4,12 @@
 // page and tapping back thaws the exact pixels that were there before, without
 // so much as a network request. If a session was started on another device in
 // the meantime, the phone happily shows the old screen. So on every return to
-// the foreground we check how long the page has been sitting there and bring it
-// back up to date.
+// the foreground we check how long the page has been sitting there and, if it's
+// had any time at all to drift, load it again from the server.
 
 // Below this you've barely looked away — short enough that it only skips the
-// refresh for things like a permission prompt stealing focus for a moment.
+// reload for things like a permission prompt stealing focus for a moment.
 const STALE_MS = 5 * 1000
-
-// Past this the page is old enough that a component refresh isn't worth
-// trusting: assets may have been redeployed, the session may have expired.
-const RELOAD_MS = 30 * 60 * 1000
 
 let lastFreshAt = Date.now()
 
@@ -21,49 +17,21 @@ function markFresh() {
     lastFreshAt = Date.now()
 }
 
-function age() {
-    return Date.now() - lastFreshAt
-}
-
-/**
- * Re-render every Livewire component in place. Cheaper and far less jarring
- * than a reload — no white flash, scroll position kept.
- */
-function refreshComponents() {
-    if (!window.Livewire) {
-        return false
-    }
-
-    const components = window.Livewire.all()
-
-    if (!components.length) {
-        return false
-    }
-
-    components.forEach((component) => component.$refresh())
-
-    markFresh()
-
-    return true
-}
-
 function revive() {
-    const elapsed = age()
-
-    if (elapsed < STALE_MS) {
+    if (Date.now() - lastFreshAt < STALE_MS) {
         return
     }
 
     // Reloading while offline just trades stale data for an error page.
-    if (elapsed < RELOAD_MS || !navigator.onLine) {
-        if (refreshComponents()) {
-            return
-        }
+    if (!navigator.onLine) {
+        return
     }
 
-    if (navigator.onLine) {
-        window.location.reload()
-    }
+    // Marked before the request so a reload that takes a while to come back
+    // doesn't immediately look stale again.
+    markFresh()
+
+    window.location.reload()
 }
 
 document.addEventListener('visibilitychange', () => {
