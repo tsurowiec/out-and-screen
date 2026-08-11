@@ -11,27 +11,61 @@
 // reload for things like a permission prompt stealing focus for a moment.
 const STALE_MS = 5 * 1000
 
+// A tap goes out as a Livewire request a beat after the click handler runs, so
+// a focus event arriving with the tap — dismissing a wire:confirm hands focus
+// back before the request is queued — can reach us first. Look again after
+// this long before deciding the page really is idle.
+const SETTLE_MS = 250
+
+// A request that has been out this long is hung or lost. Waiting on it forever
+// would leave the tab unable to ever reload itself again, which is the whole
+// point of this file.
+const IN_FLIGHT_TIMEOUT_MS = 15 * 1000
+
 let lastFreshAt = Date.now()
+let inFlight = 0
+let inFlightSince = 0
 
 function markFresh() {
     lastFreshAt = Date.now()
 }
 
-function revive() {
+// A reload aborts whatever Livewire has in the air, and the tap that started it
+// silently does nothing — no spinner, no error, just an entry that refuses to
+// delete. Waiting costs nothing: the response marks the page fresh anyway.
+function isBusy() {
+    return inFlight > 0 && Date.now() - inFlightSince < IN_FLIGHT_TIMEOUT_MS
+}
+
+function isStale() {
+    if (isBusy()) {
+        return false
+    }
+
     if (Date.now() - lastFreshAt < STALE_MS) {
-        return
+        return false
     }
 
     // Reloading while offline just trades stale data for an error page.
-    if (!navigator.onLine) {
+    return navigator.onLine
+}
+
+function revive() {
+    if (!isStale()) {
         return
     }
 
-    // Marked before the request so a reload that takes a while to come back
-    // doesn't immediately look stale again.
-    markFresh()
+    setTimeout(() => {
+        if (!isStale()) {
+            return
+        }
 
-    window.location.reload()
+        // Marked before the request so a reload that takes a while to come back
+        // doesn't immediately look stale again.
+        markFresh()
+
+        window.location.reload()
+    }, SETTLE_MS)
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -39,6 +73,12 @@ document.addEventListener('visibilitychange', () => {
 })
 
 window.addEventListener('focus', revive)
+
+// Losing focus is the start of the time away, not part of it. Without this a
+// native dialog — confirm(), a permission prompt — spends its whole time on
+// screen counting as drift, so dismissing it reloads the page and takes the
+// pending tap with it.
+window.addEventListener('blur', markFresh)
 
 // Restored from the back/forward cache, which is how iOS often resurrects the
 // app. The DOM here is a snapshot of whenever it was frozen.
@@ -53,5 +93,17 @@ window.addEventListener('pageshow', (event) => {
 document.addEventListener('livewire:navigated', markFresh)
 
 document.addEventListener('livewire:init', () => {
-    window.Livewire.hook('commit', ({ respond }) => respond(markFresh))
+    window.Livewire.hook('commit', ({ respond }) => {
+        if (inFlight === 0) {
+            inFlightSince = Date.now()
+        }
+
+        inFlight++
+
+        // Fires however the request ends — response, error or cancellation.
+        respond(() => {
+            inFlight = Math.max(0, inFlight - 1)
+            markFresh()
+        })
+    })
 })
